@@ -3,11 +3,11 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4500;
 
 const AUDIOBOOKS_PATH = process.env.AUDIOBOOKS_PATH || path.join(__dirname, 'audiobooks');
 
-const HOSTNAME = process.env.HOSTNAME || 'http://localhost:3000';
+const HOSTNAME = process.env.HOSTNAME || 'http://localhost:4500';
 
 app.use(express.static('public'));
 

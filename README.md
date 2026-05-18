@@ -28,7 +28,7 @@ audiobooks/
 
 ### Web Interface
 
-Browse audiobooks at `http://localhost:3000` (or your configured hostname). Each book shows as a card with:
+Browse audiobooks at `http://localhost:4500` (or your configured hostname). Each book shows as a card with:
 - Cover image
 - Title
 - RSS feed button (copies feed URL to clipboard)
@@ -46,9 +46,9 @@ Browse audiobooks at `http://localhost:3000` (or your configured hostname). Each
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PORT` | `3000` | Server port |
+| `PORT` | `4500` | Server port |
 | `AUDIOBOOKS_PATH` | `./audiobooks` | Path to audiobooks directory |
-| `HOSTNAME` | `http://localhost:3000` | Base URL for RSS feeds |
+| `HOSTNAME` | `http://localhost:4500` | Base URL for RSS feeds |
 
 ### Running Locally
 
@@ -66,7 +66,7 @@ npm run dev
 
 ```bash
 docker build -t audiobookcast .
-docker run -p 3000:3000 -v /path/to/audiobooks:/app/audiobooks audiobookcast
+docker run -p 4500:4500 -v /path/to/audiobooks:/app/audiobooks audiobookcast
 ```
 
 Mount your audiobooks directory to expose them to the container.
