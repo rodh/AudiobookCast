@@ -5,7 +5,7 @@ const fs = require('fs');
 const { scanLibrary } = require('./lib/library');
 const { buildFeed } = require('./lib/rss');
 const { buildNavigation, buildAllBooks, buildBookFeed } = require('./lib/opds');
-const { loadCache, saveCache, mergeMetadata } = require('./lib/cache');
+const { loadCache, saveCache, mergeMetadata, loadTags, mergeTags } = require('./lib/cache');
 const { enrichBooks } = require('./lib/enrich');
 
 const app = express();
@@ -42,6 +42,9 @@ async function init() {
   metadataCache = cache;
   saveCache(DATA_DIR, metadataCache);
 
+  // Merge curated tags (tags.json wins over auto-detected)
+  mergeTags(library.books, loadTags(DATA_DIR));
+
   writeLibraryJson();
 
   // Watch for top-level directory changes (debounced)
@@ -55,6 +58,7 @@ async function init() {
         const { cache } = mergeMetadata(library.books, metadataCache);
         metadataCache = cache;
         saveCache(DATA_DIR, metadataCache);
+        mergeTags(library.books, loadTags(DATA_DIR));
         console.log(`Rescan complete: ${Object.keys(library.books).length} book(s)`);
         writeLibraryJson();
         enrichBooks(library.books, metadataCache, DATA_DIR).catch(() => {});
@@ -143,6 +147,7 @@ app.post('/api/rescan', async (req, res) => {
   metadataCache = cache;
   saveCache(DATA_DIR, metadataCache);
   const count = Object.keys(library.books).length;
+  mergeTags(library.books, loadTags(DATA_DIR));
   console.log(`Manual rescan: ${count} book(s)`);
   writeLibraryJson();
   enrichBooks(library.books, metadataCache, DATA_DIR).catch(() => {});
