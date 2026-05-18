@@ -142,14 +142,13 @@ app.get('/api/tags', (req, res) => {
   res.json(tags);
 });
 
-app.post('/api/categorize', async (req, res) => {
+app.get('/api/categorize', async (req, res) => {
   if (!process.env.OMLX_API_KEY) {
     return res.status(500).json({ error: 'OMLX_API_KEY not configured' });
   }
   try {
     const force = req.query.force === '1';
-    const model = req.query.model || '';
-    const result = await categorizeBooks(library.books, DATA_DIR, { force, model });
+    const result = await categorizeBooks(library.books, DATA_DIR, { force });
     // Reload tags into running library
     mergeTags(library.books, loadTags(DATA_DIR));
     res.json(result);
