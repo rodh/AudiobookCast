@@ -26,8 +26,11 @@ function clean(string) {
 }
 
 function createPermalink(title) {
-  const fn = title.split('(')[0];
-  return clean(fn.trim()).replace(/ /g, '-').toLowerCase();
+  return title
+    .trim()
+    .replace(/ /g, '-')
+    .replace(/[^A-Za-z0-9\-()\[\]]/g, '')
+    .toLowerCase();
 }
 
 function getAudioFiles(dirPath) {
@@ -71,7 +74,7 @@ app.get('/feed/:book', (req, res) => {
     <description>Feed created to sync the audio book ${feedTitle}.</description>
     <language>en-us</language>
     <image>
-      <url>${HOSTNAME}/audiobooks/${book}/cover.jpg</url>
+      <url>${HOSTNAME}/audiobooks/${createPermalink(book)}/cover.jpg</url>
       <title>Podcast Generator Demo</title>
       <link>${HOSTNAME}</link>
     </image>
@@ -86,7 +89,7 @@ app.get('/feed/:book', (req, res) => {
       .replace(/File/gi, '-')
       .trim();
 
-    const urlString = `${HOSTNAME}/audiobooks/${book}/${file.name}`;
+    const urlString = `${HOSTNAME}/audiobooks/${createPermalink(book)}/${file.name}`;
     const guid = Buffer.from(file.name).toString('base64');
 
     xml += `    <item>
