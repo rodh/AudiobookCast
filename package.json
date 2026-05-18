@@ -1,5 +1,5 @@
 {
-  "name": "audiobooks-www",
+  "name": "audiobookcast",
   "version": "1.0.0",
   "description": "Audiobook RSS feed server",
   "main": "server.js",

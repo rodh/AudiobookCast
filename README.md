@@ -4,7 +4,7 @@ An audiobook RSS feed server that serves audio files and generates podcast-compa
 
 ## Purpose
 
-This project provides a simple web interface to browse audiobooks stored locally, and generates RSS feeds for each book so you can subscribe to them in any podcast app (e.g., Overcast, Pocket Casts). Each audiobook gets its own individual feed URL that links to all audio files in that folder.
+This project serves DRM-free audiobooks (e.g., purchased from Downpour) and generates podcast-compatible RSS feeds so you can subscribe to a specific audiobook in any podcast app. Once subscribed, your podcast app downloads all chapters for offline listening.
 
 ## Key Aspects
 
