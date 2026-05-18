@@ -8,10 +8,6 @@ body {
 }
 
 .card {
-  display: inline-block;
-  width: 8rem;
-  margin: 0 .4em 2rem;
-  vertical-align: top;
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,.1);
@@ -70,13 +66,24 @@ body {
   color: #fff;
 }
 
-@media (min-width: 767px) {
-  .card { width: 15rem; }
-  .card-img-top { height: 14rem; }
+#books-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  padding: 0 .5rem;
 }
 
-#books-container {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+@media (min-width: 576px) {
+  #books-container {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+    padding: 0;
+  }
+}
+
+@media (min-width: 992px) {
+  #books-container {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .card-img-top { height: 14rem; }
 }

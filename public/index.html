@@ -8,11 +8,12 @@
   <link href="./assets/css/style.css" rel="stylesheet">
 </head>
 <body>
-  <nav class="navbar navbar-toggleable-md navbar-inverse bg-inverse fixed-top">
+  <nav class="navbar navbar-dark bg-dark fixed-top">
     <a class="navbar-brand" href="#">Audio Books</a>
+    <a href="/opds" class="btn btn-outline-light btn-sm" onclick="copyFeedUrl(event, this)">OPDS Catalog</a>
   </nav>
 
-  <div class="container-fluid" style="margin-top: 5rem; text-align: center;">
+  <div class="container-fluid" style="text-align: center;">
     <div id="books-container"></div>
   </div>
 
@@ -30,7 +31,6 @@
           <div class="card-block">
             <h4 class="card-title">${book.title}</h4>
             <a href="/books/${book.id}/feed" class="card-link btn btn-secondary btn-sm" onclick="copyFeedUrl(event, this)">RSS Feed</a>
-            <a href="/opds" class="card-link btn btn-outline-secondary btn-sm" onclick="copyFeedUrl(event, this)">OPDS</a>
           </div>
         `;
         container.appendChild(card);
