@@ -148,7 +148,8 @@ app.post('/api/categorize', async (req, res) => {
   }
   try {
     const force = req.query.force === '1';
-    const result = await categorizeBooks(library.books, DATA_DIR, { force });
+    const model = req.query.model || '';
+    const result = await categorizeBooks(library.books, DATA_DIR, { force, model });
     // Reload tags into running library
     mergeTags(library.books, loadTags(DATA_DIR));
     res.json(result);
