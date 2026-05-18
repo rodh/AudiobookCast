@@ -55,7 +55,7 @@
         sidebar.style.display = 'none';
         return;
       }
-      sidebar.style.display = '';
+      sidebar.style.display = 'block';
       sidebar.innerHTML = '<h6 class="tags-heading">Tags</h6>' +
         allTags.map(t =>
           `<button class="tag-pill${activeTag === t.name ? ' active' : ''}" onclick="toggleTag('${t.name.replace(/'/g, "\\'")}')">${t.name} <span class="tag-count">${t.count}</span></button>`
