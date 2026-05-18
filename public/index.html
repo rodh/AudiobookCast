@@ -16,8 +16,6 @@
     <div id="books-container"></div>
   </div>
 
-  
-
   <script>
     async function loadBooks() {
       const res = await fetch('/api/books');
@@ -28,10 +26,11 @@
         const card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = `
-          <img src="/covers/${book.safename}" class="card-img-top img-fluid" alt="${book.name}">
+          <img src="/books/${book.id}/cover" class="card-img-top img-fluid" alt="${book.title}" onerror="this.style.display='none'">
           <div class="card-block">
-            <h4 class="card-title">${book.name}</h4>
-            <a href="/feed/${book.safename}" class="card-link btn btn-secondary btn-sm" onclick="copyFeedUrl(event, this)">RSS Feed</a>
+            <h4 class="card-title">${book.title}</h4>
+            <a href="/books/${book.id}/feed" class="card-link btn btn-secondary btn-sm" onclick="copyFeedUrl(event, this)">RSS Feed</a>
+            <a href="/opds" class="card-link btn btn-outline-secondary btn-sm" onclick="copyFeedUrl(event, this)">OPDS</a>
           </div>
         `;
         container.appendChild(card);
@@ -41,11 +40,25 @@
     function copyFeedUrl(event, link) {
       event.preventDefault();
       const feedUrl = link.href;
-      navigator.clipboard.writeText(feedUrl).then(() => {
-        const originalText = link.textContent;
-        link.textContent = 'Copied!';
-        setTimeout(() => { link.textContent = originalText; }, 1500);
-      });
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(feedUrl).then(() => showCopied(link));
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = feedUrl;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showCopied(link);
+      }
+    }
+
+    function showCopied(link) {
+      const originalText = link.textContent;
+      link.textContent = 'Copied!';
+      setTimeout(() => { link.textContent = originalText; }, 1500);
     }
     loadBooks();
   </script>

@@ -56,6 +56,20 @@ body {
   color: #fff;
 }
 
+.btn-outline-secondary {
+  display: block;
+  width: calc(100% - 1.5rem);
+  margin: 0 .75rem .75rem;
+  border: 1px solid #495057;
+  color: #495057;
+  background: transparent;
+}
+
+.btn-outline-secondary:hover {
+  background: #495057;
+  color: #fff;
+}
+
 @media (min-width: 767px) {
   .card { width: 15rem; }
   .card-img-top { height: 14rem; }

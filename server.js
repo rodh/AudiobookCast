@@ -2,178 +2,151 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 
+const { scanLibrary } = require('./lib/library');
+const { buildFeed } = require('./lib/rss');
+const { buildNavigation, buildAllBooks, buildBookFeed } = require('./lib/opds');
+
 const app = express();
 const PORT = process.env.PORT || 4500;
-
 const AUDIOBOOKS_PATH = process.env.AUDIOBOOKS_PATH || path.join(__dirname, 'audiobooks');
+const HOSTNAME = process.env.HOSTNAME || `http://localhost:${PORT}`;
+const DATA_DIR = path.join(__dirname, 'data');
 
-const HOSTNAME = process.env.HOSTNAME || 'http://localhost:4500';
+let library = { books: {} };
+
+// --- Startup ---
+
+async function init() {
+  library = await scanLibrary(AUDIOBOOKS_PATH);
+  const count = Object.keys(library.books).length;
+  console.log(`Scanned ${count} audiobook(s)`);
+
+  // Write index for debugging
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(
+      path.join(DATA_DIR, 'library.json'),
+      JSON.stringify(library, null, 2)
+    );
+  } catch (err) {
+    console.error('Failed to write library.json:', err.message);
+  }
+
+  // Watch for top-level directory changes (debounced)
+  let debounceTimer = null;
+  try {
+    fs.watch(AUDIOBOOKS_PATH, (eventType, filename) => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(async () => {
+        console.log('Audiobooks directory changed, rescanning...');
+        library = await scanLibrary(AUDIOBOOKS_PATH);
+        console.log(`Rescan complete: ${Object.keys(library.books).length} book(s)`);
+        try {
+          fs.writeFileSync(
+            path.join(DATA_DIR, 'library.json'),
+            JSON.stringify(library, null, 2)
+          );
+        } catch {}
+      }, 2000);
+    });
+  } catch (err) {
+    console.error('Could not watch audiobooks directory:', err.message);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`AudiobookCast running at ${HOSTNAME}`);
+  });
+}
+
+// --- Static ---
 
 app.use(express.static('public'));
 
-function cleanInput(input) {
-  const search = [
-    /<script[^>]*?>.*?<\/script>/si,
-    /<[\/\!]*?[^<>]*?>/si,
-    /<style[^>]*?>.*?<\/style>/si,
-    /<![\s\S]*?--[ \t\n\r]*>/g
-  ];
-  return search.reduce((out, reg) => out.replace(reg, ''), input);
-}
-
-function clean(string) {
-  return string.replace(/[^A-Za-z0-9\-]/g, '');
-}
-
-function createPermalink(title) {
-  return title
-    .trim()
-    .replace(/ /g, '-')
-    .replace(/[^A-Za-z0-9\-()\[\]]/g, '')
-    .toLowerCase();
-}
-
-function collapseSpacesBeforeBracket(str) {
-  return str.replace(/\s+\[/g, ' [');
-}
-
-function normalizeFileName(str) {
-  return str.replace(/\s+\[/g, ' [');
-}
-
-function getAudioFiles(dirPath) {
-  const allowedExt = ['.mp4', '.MP4', '.mp3', '.MP3'];
-  const files = [];
-
-  if (!fs.existsSync(dirPath)) return files;
-
-  const items = fs.readdirSync(dirPath);
-  for (const item of items) {
-    const ext = path.extname(item);
-    if (!allowedExt.includes(ext)) continue;
-    files.push({ name: item });
-  }
-
-  return files.sort((a, b) => a.name.localeCompare(b.name));
-}
-
-app.get('/feed/:book', (req, res) => {
-  const safeName = cleanInput(req.params.book);
-  let actualBookName = null;
-
-  const items = fs.readdirSync(AUDIOBOOKS_PATH);
-  for (const item of items) {
-    const itemPath = path.join(AUDIOBOOKS_PATH, item);
-    if (fs.statSync(itemPath).isDirectory() && createPermalink(item) === safeName) {
-      actualBookName = item;
-      break;
-    }
-  }
-
-  if (!actualBookName) {
-    return res.status(404).send('Book not found');
-  }
-
-  const bookPath = path.join(AUDIOBOOKS_PATH, actualBookName);
-
-  res.set('Content-Type', 'text/xml');
-
-  const feedTitle = safeName
-    .replace(/\(Unabridged\)/gi, '')
-    .replace(/\[/g, '')
-    .replace(/\]/g, '')
-    .replace(/- MP3/gi, '')
-    .replace(/File/gi, '-')
-    .trim();
-
-  const coverName = safeName + '.jpg';
-  const files = getAudioFiles(bookPath);
-
-  let xml = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
-  <channel>
-    <title>${feedTitle}</title>
-    <link>${HOSTNAME}</link>
-    <description>Feed created to sync the audio book ${feedTitle}.</description>
-    <language>en-us</language>
-    <image>
-      <url>${HOSTNAME}/audiobooks/${encodeURIComponent(actualBookName).replace(/\[/g, '%5B').replace(/\]/g, '%5D')}/cover.jpg</url>
-      <title>Podcast Generator Demo</title>
-      <link>${HOSTNAME}</link>
-    </image>
-`;
-
-  for (const file of files) {
-    const cleanName = file.name
-      .replace(/\(Unabridged\)/gi, '')
-      .replace(/\.mp3/gi, '')
-      .replace(/\[/g, '')
-      .replace(/\]/g, '')
-      .replace(/File/gi, '-')
-      .trim();
-
-    const urlString = `${HOSTNAME}/audiobooks/${encodeURIComponent(actualBookName).replace(/\[/g, '%5B').replace(/\]/g, '%5D')}/${encodeURIComponent(normalizeFileName(file.name)).replace(/\[/g, '%5B').replace(/\]/g, '%5D')}`;
-    const guid = Buffer.from(file.name).toString('base64');
-
-    xml += `    <item>
-      <title>${cleanName}</title>
-      <description></description>
-      <guid>${guid}</guid>
-      <enclosure url="${urlString}" length="0" type="audio/mpeg"/>
-    </item>
-`;
-  }
-
-  xml += `  </channel>
-</rss>`;
-
-  res.send(xml);
-});
-
-app.get('/covers/:name', (req, res) => {
-  const safeName = req.params.name.replace('.jpg', '');
-  const items = fs.readdirSync(AUDIOBOOKS_PATH);
-
-  for (const item of items) {
-    const itemPath = path.join(AUDIOBOOKS_PATH, item);
-    if (fs.statSync(itemPath).isDirectory() && createPermalink(item) === safeName) {
-      const coverInFolder = path.join(itemPath, 'cover.jpg');
-      if (fs.existsSync(coverInFolder)) {
-        res.sendFile(coverInFolder);
-        return;
-      }
-    }
-  }
-
-  res.status(404).send('Cover not found');
-});
+// --- API ---
 
 app.get('/api/books', (req, res) => {
-  if (!fs.existsSync(AUDIOBOOKS_PATH)) {
-    return res.json([]);
-  }
+  const books = Object.values(library.books)
+    .map(b => ({
+      id: b.id,
+      title: b.title,
+      hasCover: b.hasCover,
+      fileCount: b.files.length,
+      addedAt: b.addedAt
+    }))
+    .sort((a, b) => new Date(b.addedAt) - new Date(a.addedAt));
 
-  const books = [];
-  const items = fs.readdirSync(AUDIOBOOKS_PATH);
-
-  for (const item of items) {
-    const itemPath = path.join(AUDIOBOOKS_PATH, item);
-    if (fs.statSync(itemPath).isDirectory()) {
-      const mtime = fs.statSync(itemPath).mtime.getTime();
-      books.push({
-        name: item,
-        safename: createPermalink(item),
-        mtime: mtime
-      });
-    }
-  }
-
-  books.sort((a, b) => b.mtime - a.mtime);
   res.json(books);
 });
 
-app.use('/audiobooks', express.static(AUDIOBOOKS_PATH));
+app.post('/api/rescan', async (req, res) => {
+  library = await scanLibrary(AUDIOBOOKS_PATH);
+  const count = Object.keys(library.books).length;
+  console.log(`Manual rescan: ${count} book(s)`);
+  try {
+    fs.writeFileSync(
+      path.join(DATA_DIR, 'library.json'),
+      JSON.stringify(library, null, 2)
+    );
+  } catch {}
+  res.json({ ok: true, count });
+});
 
-app.listen(PORT, () => {
-  console.log(`Audiobook server running at ${HOSTNAME}`);
+// --- Book routes ---
+
+app.get('/books/:id/feed', (req, res) => {
+  const book = library.books[req.params.id];
+  if (!book) return res.status(404).send('Book not found');
+
+  const hostname = HOSTNAME.replace(/\/$/, '');
+  res.set('Content-Type', 'text/xml');
+  res.send(buildFeed(book, hostname));
+});
+
+app.get('/books/:id/cover', (req, res) => {
+  const book = library.books[req.params.id];
+  if (!book || !book.hasCover) return res.status(404).send('Cover not found');
+
+  const coverPath = path.join(AUDIOBOOKS_PATH, book.coverFolder, book.coverFile);
+  res.sendFile(coverPath);
+});
+
+app.get('/books/:id/files/:index', (req, res) => {
+  const book = library.books[req.params.id];
+  if (!book) return res.status(404).send('Book not found');
+
+  const file = book.files[parseInt(req.params.index, 10)];
+  if (!file) return res.status(404).send('File not found');
+
+  const filePath = path.join(AUDIOBOOKS_PATH, file.folder, file.filename);
+  res.sendFile(filePath);
+});
+
+// --- OPDS ---
+
+app.get('/opds', (req, res) => {
+  const hostname = HOSTNAME.replace(/\/$/, '');
+  res.set('Content-Type', 'application/atom+xml;profile=opds-catalog;kind=navigation');
+  res.send(buildNavigation(hostname));
+});
+
+app.get('/opds/all', (req, res) => {
+  const hostname = HOSTNAME.replace(/\/$/, '');
+  res.set('Content-Type', 'application/atom+xml;profile=opds-catalog;kind=acquisition');
+  res.send(buildAllBooks(library.books, hostname));
+});
+
+app.get('/opds/books/:id', (req, res) => {
+  const book = library.books[req.params.id];
+  if (!book) return res.status(404).send('Book not found');
+
+  const hostname = HOSTNAME.replace(/\/$/, '');
+  res.set('Content-Type', 'application/atom+xml;profile=opds-catalog;kind=acquisition');
+  res.send(buildBookFeed(book, hostname));
+});
+
+// --- Start ---
+
+init().catch(err => {
+  console.error('Failed to start:', err);
+  process.exit(1);
 });

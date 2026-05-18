@@ -6,3 +6,5 @@ coverage
 .vscode
 .idea
 *.pem
+audiobooks/
+data/
