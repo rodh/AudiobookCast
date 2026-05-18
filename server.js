@@ -2,6 +2,18 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 
+// Load .env if present (env vars from Docker/Unraid take precedence)
+const envPath = path.join(__dirname, '.env');
+try {
+  const envFile = fs.readFileSync(envPath, 'utf8');
+  for (const line of envFile.split('\n')) {
+    const match = line.match(/^([^#=]+)=(.+)$/);
+    if (match && !process.env[match[1].trim()]) {
+      process.env[match[1].trim()] = match[2].trim();
+    }
+  }
+} catch {}
+
 const { scanLibrary } = require('./lib/library');
 const { buildFeed } = require('./lib/rss');
 const { buildNavigation, buildAllBooks, buildBookFeed } = require('./lib/opds');
