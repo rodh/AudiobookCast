@@ -1,0 +1,77 @@
+# AudiobookCast
+
+An audiobook RSS feed server that serves audio files and generates podcast-compatible RSS feeds for syncing with your devices.
+
+## Purpose
+
+This project provides a simple web interface to browse audiobooks stored locally, and generates RSS feeds for each book so you can subscribe to them in any podcast app (e.g., Overcast, Pocket Casts). Each audiobook gets its own individual feed URL that links to all audio files in that folder.
+
+## Key Aspects
+
+### Audiobook Directory Structure
+
+Audiobooks are served from the `audiobooks/` directory (configurable via `AUDIOBOOKS_PATH`). Each audiobook should be in its own folder with:
+- Cover image: `cover.jpg`
+- Audio files: `.mp3` or `.mp4` files
+
+```
+audiobooks/
+├── The Great Gatsby/
+│   ├── cover.jpg
+│   ├── 01.mp3
+│   ├── 02.mp3
+│   └── ...
+└── Another Book/
+    ├── cover.jpg
+    └── 01.mp3
+```
+
+### Web Interface
+
+Browse audiobooks at `http://localhost:3000` (or your configured hostname). Each book shows as a card with:
+- Cover image
+- Title
+- RSS feed button (copies feed URL to clipboard)
+
+### API Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/books` | Returns list of all audiobooks (name, safename, mtime) |
+| `GET /feed/:book` | Returns RSS XML feed for the specified audiobook |
+| `GET /covers/:name` | Serves cover image by permalink name |
+| `GET /audiobooks/*` | Serves audio files statically |
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3000` | Server port |
+| `AUDIOBOOKS_PATH` | `./audiobooks` | Path to audiobooks directory |
+| `HOSTNAME` | `http://localhost:3000` | Base URL for RSS feeds |
+
+### Running Locally
+
+```bash
+npm start
+```
+
+For development with auto-reload:
+
+```bash
+npm run dev
+```
+
+### Running with Docker
+
+```bash
+docker build -t audiobookcast .
+docker run -p 3000:3000 -v /path/to/audiobooks:/app/audiobooks audiobookcast
+```
+
+Mount your audiobooks directory to expose them to the container.
+
+## Dependencies
+
+- **express**: Web server framework
+- **nodemon**: Development auto-reload (dev dependency)
