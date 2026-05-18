@@ -28,10 +28,10 @@
         const card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = `
-          <img src="/audiobooks/${book.safename}/cover.jpg" class="card-img-top img-fluid" alt="${book.name}">
+          <img src="/covers/${book.safename}" class="card-img-top img-fluid" alt="${book.name}">
           <div class="card-block">
             <h4 class="card-title">${book.name}</h4>
-            <a href="/feed/${book.name}" class="card-link btn btn-secondary btn-sm" onclick="copyFeedUrl(event, this)">RSS Feed</a>
+            <a href="/feed/${book.safename}" class="card-link btn btn-secondary btn-sm" onclick="copyFeedUrl(event, this)">RSS Feed</a>
           </div>
         `;
         container.appendChild(card);

@@ -50,12 +50,27 @@ function getAudioFiles(dirPath) {
 }
 
 app.get('/feed/:book', (req, res) => {
-  const book = cleanInput(req.params.book);
-  const bookPath = path.join(AUDIOBOOKS_PATH, book);
+  const safeName = cleanInput(req.params.book);
+  let actualBookName = null;
+
+  const items = fs.readdirSync(AUDIOBOOKS_PATH);
+  for (const item of items) {
+    const itemPath = path.join(AUDIOBOOKS_PATH, item);
+    if (fs.statSync(itemPath).isDirectory() && createPermalink(item) === safeName) {
+      actualBookName = item;
+      break;
+    }
+  }
+
+  if (!actualBookName) {
+    return res.status(404).send('Book not found');
+  }
+
+  const bookPath = path.join(AUDIOBOOKS_PATH, actualBookName);
 
   res.set('Content-Type', 'text/xml');
 
-  const feedTitle = book
+  const feedTitle = safeName
     .replace(/\(Unabridged\)/gi, '')
     .replace(/\[/g, '')
     .replace(/\]/g, '')
@@ -63,7 +78,7 @@ app.get('/feed/:book', (req, res) => {
     .replace(/File/gi, '-')
     .trim();
 
-  const coverName = createPermalink(book) + '.jpg';
+  const coverName = safeName + '.jpg';
   const files = getAudioFiles(bookPath);
 
   let xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -74,7 +89,7 @@ app.get('/feed/:book', (req, res) => {
     <description>Feed created to sync the audio book ${feedTitle}.</description>
     <language>en-us</language>
     <image>
-      <url>${HOSTNAME}/audiobooks/${createPermalink(book)}/cover.jpg</url>
+      <url>${HOSTNAME}/audiobooks/${encodeURIComponent(actualBookName)}/cover.jpg</url>
       <title>Podcast Generator Demo</title>
       <link>${HOSTNAME}</link>
     </image>
@@ -89,7 +104,7 @@ app.get('/feed/:book', (req, res) => {
       .replace(/File/gi, '-')
       .trim();
 
-    const urlString = `${HOSTNAME}/audiobooks/${createPermalink(book)}/${file.name}`;
+    const urlString = `${HOSTNAME}/audiobooks/${encodeURIComponent(actualBookName)}/${file.name}`;
     const guid = Buffer.from(file.name).toString('base64');
 
     xml += `    <item>
