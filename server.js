@@ -7,6 +7,7 @@ const { buildFeed } = require('./lib/rss');
 const { buildNavigation, buildAllBooks, buildBookFeed } = require('./lib/opds');
 const { loadCache, saveCache, mergeMetadata, loadTags, mergeTags } = require('./lib/cache');
 const { enrichBooks } = require('./lib/enrich');
+const { categorizeBooks } = require('./lib/categorize');
 
 const app = express();
 const PORT = process.env.PORT || 4500;
@@ -139,6 +140,22 @@ app.get('/api/tags', (req, res) => {
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count);
   res.json(tags);
+});
+
+app.post('/api/categorize', async (req, res) => {
+  if (!process.env.OMLX_API_KEY) {
+    return res.status(500).json({ error: 'OMLX_API_KEY not configured' });
+  }
+  try {
+    const force = req.query.force === '1';
+    const result = await categorizeBooks(library.books, DATA_DIR, { force });
+    // Reload tags into running library
+    mergeTags(library.books, loadTags(DATA_DIR));
+    res.json(result);
+  } catch (err) {
+    console.error('Categorization failed:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/api/rescan', async (req, res) => {
