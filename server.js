@@ -33,6 +33,14 @@ function createPermalink(title) {
     .toLowerCase();
 }
 
+function collapseSpacesBeforeBracket(str) {
+  return str.replace(/\s+\[/g, ' [');
+}
+
+function normalizeFileName(str) {
+  return str.replace(/\s+\[/g, ' [');
+}
+
 function getAudioFiles(dirPath) {
   const allowedExt = ['.mp4', '.MP4', '.mp3', '.MP3'];
   const files = [];
@@ -104,7 +112,7 @@ app.get('/feed/:book', (req, res) => {
       .replace(/File/gi, '-')
       .trim();
 
-    const urlString = `${HOSTNAME}/audiobooks/${encodeURIComponent(actualBookName).replace(/\[/g, '%5B').replace(/\]/g, '%5D')}/${encodeURIComponent(file.name).replace(/\[/g, '%5B').replace(/\]/g, '%5D')}`;
+    const urlString = `${HOSTNAME}/audiobooks/${encodeURIComponent(actualBookName).replace(/\[/g, '%5B').replace(/\]/g, '%5D')}/${encodeURIComponent(normalizeFileName(file.name)).replace(/\[/g, '%5B').replace(/\]/g, '%5D')}`;
     const guid = Buffer.from(file.name).toString('base64');
 
     xml += `    <item>
