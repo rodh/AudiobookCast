@@ -89,7 +89,7 @@ app.get('/feed/:book', (req, res) => {
     <description>Feed created to sync the audio book ${feedTitle}.</description>
     <language>en-us</language>
     <image>
-      <url>${HOSTNAME}/audiobooks/${encodeURIComponent(actualBookName)}/cover.jpg</url>
+      <url>${HOSTNAME}/audiobooks/${encodeURIComponent(actualBookName).replace(/\[/g, '%5B').replace(/\]/g, '%5D')}/cover.jpg</url>
       <title>Podcast Generator Demo</title>
       <link>${HOSTNAME}</link>
     </image>
@@ -104,7 +104,7 @@ app.get('/feed/:book', (req, res) => {
       .replace(/File/gi, '-')
       .trim();
 
-    const urlString = `${HOSTNAME}/audiobooks/${encodeURIComponent(actualBookName)}/${file.name}`;
+    const urlString = `${HOSTNAME}/audiobooks/${encodeURIComponent(actualBookName).replace(/\[/g, '%5B').replace(/\]/g, '%5D')}/${encodeURIComponent(file.name).replace(/\[/g, '%5B').replace(/\]/g, '%5D')}`;
     const guid = Buffer.from(file.name).toString('base64');
 
     xml += `    <item>
