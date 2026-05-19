@@ -273,6 +273,7 @@ body {
 }
 
 .modal-dialog {
+  pointer-events: auto;
   background: #fff;
   border-radius: 8px;
   width: 90%;
