@@ -106,6 +106,7 @@ body {
 
 /* Cards */
 .card {
+  position: relative;
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,.1);
@@ -229,4 +230,132 @@ body {
     grid-template-columns: repeat(4, 1fr);
   }
   .card-img-top { height: 14rem; }
+}
+
+/* Edit icon on cards */
+.card-edit-btn {
+  position: absolute;
+  top: .5rem;
+  right: .5rem;
+  background: rgba(0,0,0,.5);
+  border: none;
+  color: #fff;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: .8rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.card:hover .card-edit-btn {
+  opacity: 1;
+}
+
+.card-edit-btn:hover {
+  background: rgba(0,0,0,.75);
+}
+
+/* Tag edit modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-dialog {
+  background: #fff;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0,0,0,.2);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: #6c757d;
+  cursor: pointer;
+  padding: 0;
+}
+
+.modal-close:hover {
+  color: #212529;
+}
+
+.modal-body {
+  padding: 1.25rem;
+  overflow-y: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: .5rem;
+  padding: .75rem 1.25rem;
+  border-top: 1px solid #dee2e6;
+}
+
+.modal-footer .btn-primary {
+  background: #495057;
+  border-color: #495057;
+}
+
+.modal-footer .btn-primary:hover {
+  background: #212529;
+  border-color: #212529;
+}
+
+.cat-pill {
+  padding: .35rem .75rem;
+  font-size: .82rem;
+  border-radius: 1rem;
+  border: 1px solid #dee2e6;
+  background: #fff;
+  color: #495057;
+  cursor: pointer;
+  transition: all .15s;
+  user-select: none;
+}
+
+.cat-pill:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.cat-pill.selected {
+  background: #495057;
+  color: #fff;
+  border-color: #495057;
 }

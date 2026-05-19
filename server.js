@@ -22,6 +22,7 @@ const { enrichBooks } = require('./lib/enrich');
 const { categorizeBooks } = require('./lib/categorize');
 
 const app = express();
+app.use(express.json());
 const PORT = process.env.PORT || 4500;
 const AUDIOBOOKS_PATH = process.env.AUDIOBOOKS_PATH || path.join(__dirname, 'audiobooks');
 const HOSTNAME = process.env.HOSTNAME || `http://localhost:${PORT}`;
@@ -152,6 +153,33 @@ app.get('/api/tags', (req, res) => {
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count);
   res.json(tags);
+});
+
+app.get('/api/categories', (req, res) => {
+  const { CATEGORIES } = require('./lib/categorize');
+  res.json(CATEGORIES);
+});
+
+app.put('/api/books/:id/tags', (req, res) => {
+  const book = library.books[req.params.id];
+  if (!book) return res.status(404).json({ error: 'Book not found' });
+
+  const { tags } = req.body;
+  if (!Array.isArray(tags)) return res.status(400).json({ error: 'tags must be an array' });
+
+  const { CATEGORIES, saveTagsFile } = require('./lib/categorize');
+  const validCategories = new Set(CATEGORIES);
+  const validTags = tags.filter(t => validCategories.has(t));
+
+  // Update tags.json
+  const allTags = loadTags(DATA_DIR);
+  allTags[book.id] = { title: book.title, tags: validTags };
+  saveTagsFile(DATA_DIR, allTags);
+
+  // Update in-memory library
+  book.tags = validTags;
+
+  res.json({ ok: true, tags: validTags });
 });
 
 app.get('/api/categorize', async (req, res) => {

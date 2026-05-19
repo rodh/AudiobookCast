@@ -28,6 +28,20 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="tag-modal" style="display:none">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h5 class="modal-title" id="tag-modal-title"></h5>
+        <button class="modal-close" onclick="closeTagModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="tag-modal-body"></div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary btn-sm" onclick="closeTagModal()">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="saveBookTags()">Save</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     let allBooks = [];
     let allTags = [];
@@ -96,6 +110,7 @@
 
       container.innerHTML = books.map(book => `
         <div class="card">
+          <button class="card-edit-btn" onclick="event.stopPropagation(); openTagModal('${book.id}')" title="Edit tags">&#9998;</button>
           <img src="/books/${book.id}/cover" class="card-img-top img-fluid" alt="${book.title}" onerror="this.style.display='none'">
           <div class="card-block">
             <h4 class="card-title">${book.title}</h4>
@@ -140,6 +155,85 @@
     document.getElementById('search-input').addEventListener('input', debounce(renderBooks, 200));
     document.getElementById('sort-select').addEventListener('change', renderBooks);
 
+    let allCategories = [];
+    let editingBookId = null;
+    let editingTags = [];
+
+    async function loadCategories() {
+      try {
+        const res = await fetch('/api/categories');
+        allCategories = await res.json();
+      } catch (e) {
+        console.error('Failed to load categories:', e);
+      }
+    }
+
+    function openTagModal(bookId) {
+      const book = allBooks.find(b => b.id === bookId);
+      if (!book) return;
+
+      editingBookId = bookId;
+      editingTags = [...(book.tags || [])];
+
+      document.getElementById('tag-modal-title').textContent = book.title;
+      renderModalPills();
+      document.getElementById('tag-modal').style.display = 'flex';
+    }
+
+    function renderModalPills() {
+      const body = document.getElementById('tag-modal-body');
+      body.innerHTML = allCategories.map(cat =>
+        `<button class="cat-pill${editingTags.includes(cat) ? ' selected' : ''}" onclick="toggleCat(this, '${cat.replace(/'/g, "\\'")}')">${cat}</button>`
+      ).join('');
+    }
+
+    function toggleCat(el, cat) {
+      const idx = editingTags.indexOf(cat);
+      if (idx >= 0) {
+        editingTags.splice(idx, 1);
+        el.classList.remove('selected');
+      } else {
+        editingTags.push(cat);
+        el.classList.add('selected');
+      }
+    }
+
+    function closeTagModal() {
+      document.getElementById('tag-modal').style.display = 'none';
+      editingBookId = null;
+      editingTags = [];
+    }
+
+    async function saveBookTags() {
+      if (!editingBookId) return;
+
+      try {
+        const res = await fetch(`/api/books/${editingBookId}/tags`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tags: editingTags })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          const book = allBooks.find(b => b.id === editingBookId);
+          if (book) book.tags = data.tags;
+
+          const tagsRes = await fetch('/api/tags');
+          allTags = await tagsRes.json();
+          renderTags();
+          renderBooks();
+        }
+      } catch (e) {
+        console.error('Failed to save tags:', e);
+      }
+
+      closeTagModal();
+    }
+
+    document.getElementById('tag-modal').addEventListener('click', function(e) {
+      if (e.target === this) closeTagModal();
+    });
+
     async function loadBooks() {
       const booksRes = await fetch('/api/books');
       allBooks = await booksRes.json();
@@ -152,6 +246,8 @@
       } catch (e) {
         console.error('Failed to load tags:', e);
       }
+
+      await loadCategories();
     }
 
     loadBooks();
