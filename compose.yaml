@@ -71,16 +71,18 @@ networks:
     external: true
 
 volumes:
-  # NFS mount of the audiobook library on the NAS. Mounted by the Valet host (.9), which
-  # must be able to reach the NAS — reachability from a dev box is irrelevant.
-  # If the mount fails: try `nfsvers=4` instead of 3, and double-check the export path
-  # (it contains a space: "Audio Books"). Add `,soft` to fail fast if the NAS is down
-  # (default `hard` retries forever, which is safer for streaming but hangs on outage).
+  # SMB/CIFS mount of the audiobook library: the //192.168.10.24/Media share, "Audio Books"
+  # subfolder. The share allows guest read, so no credentials are stored here. Mounted by
+  # the Valet host, which must reach the NAS over SMB (port 445).
+  # If the mount fails: try `vers=2.1` or `vers=3.1.1` instead of 3.0. If guest read is ever
+  # turned off on the share, add `username=${SMB_USER},password=${SMB_PASSWORD}` here and put
+  # those in the gitignored .env at the Valet root (compose interpolates them — they stay out
+  # of this committed repo).
   audiobookcast-library:
     driver: local
     driver_opts:
-      type: nfs
-      o: "addr=192.168.10.24,ro,nfsvers=3"
-      device: ":/mnt/user/Media/Audio Books"
+      type: cifs
+      o: "ro,guest,vers=3.0,iocharset=utf8"
+      device: "//192.168.10.24/Media/Audio Books"
   # Persistent app state (tags, metadata cache, enrichment). Survives rebuilds.
   audiobookcast-data:
