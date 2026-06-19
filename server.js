@@ -45,53 +45,64 @@ function writeLibraryJson() {
   }
 }
 
-async function init() {
-  library = await scanLibrary(AUDIOBOOKS_PATH);
-  const count = Object.keys(library.books).length;
-  console.log(`Scanned ${count} audiobook(s)`);
+// Load the library persisted from a previous run so we can serve it immediately on
+// startup, before the (potentially slow, network-mounted) filesystem scan finishes.
+function loadPersistedLibrary() {
+  try {
+    const saved = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'library.json'), 'utf8'));
+    if (saved && saved.books) {
+      library = saved;
+      console.log(`Loaded ${Object.keys(library.books).length} audiobook(s) from cache`);
+    }
+  } catch {
+    // First run (or unreadable cache): start empty; the initial scan will populate it.
+  }
+}
 
-  // Load cache and merge metadata
-  metadataCache = loadCache(DATA_DIR);
-  const { cache, needsEnrichment } = mergeMetadata(library.books, metadataCache);
+// Full scan + metadata/tag merge, then atomically swap it in. Shared by the initial
+// background scan, the directory watcher, and the manual /api/rescan endpoint.
+async function refreshLibrary(reason) {
+  const scanned = await scanLibrary(AUDIOBOOKS_PATH);
+  const { cache, needsEnrichment } = mergeMetadata(scanned.books, metadataCache);
   metadataCache = cache;
   saveCache(DATA_DIR, metadataCache);
-
-  // Merge curated tags (tags.json wins over auto-detected)
-  mergeTags(library.books, loadTags(DATA_DIR));
-
+  mergeTags(scanned.books, loadTags(DATA_DIR));
+  library = scanned;
+  console.log(`${reason}: ${Object.keys(library.books).length} audiobook(s)`);
   writeLibraryJson();
+  if (needsEnrichment && needsEnrichment.length) {
+    enrichBooks(library.books, metadataCache, DATA_DIR).catch(err => {
+      console.error('Enrichment error:', err.message);
+    });
+  }
+}
 
-  // Watch for top-level directory changes (debounced)
+async function init() {
+  // Serve last-known data right away, then refresh in the background. A cold start —
+  // including a scale-to-zero wake — answers immediately instead of blocking on a full
+  // library scan over the network mount.
+  loadPersistedLibrary();
+  metadataCache = loadCache(DATA_DIR);
+
+  app.listen(PORT, () => {
+    console.log(`AudiobookCast running at ${HOSTNAME}`);
+  });
+
+  // Watch for top-level directory changes (debounced) and rescan in the background.
   let debounceTimer = null;
   try {
     fs.watch(AUDIOBOOKS_PATH, (eventType, filename) => {
       if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(async () => {
-        console.log('Audiobooks directory changed, rescanning...');
-        library = await scanLibrary(AUDIOBOOKS_PATH);
-        const { cache } = mergeMetadata(library.books, metadataCache);
-        metadataCache = cache;
-        saveCache(DATA_DIR, metadataCache);
-        mergeTags(library.books, loadTags(DATA_DIR));
-        console.log(`Rescan complete: ${Object.keys(library.books).length} book(s)`);
-        writeLibraryJson();
-        enrichBooks(library.books, metadataCache, DATA_DIR).catch(() => {});
+      debounceTimer = setTimeout(() => {
+        refreshLibrary('Rescan complete').catch(err => console.error('Rescan failed:', err.message));
       }, 2000);
     });
   } catch (err) {
     console.error('Could not watch audiobooks directory:', err.message);
   }
 
-  app.listen(PORT, () => {
-    console.log(`AudiobookCast running at ${HOSTNAME}`);
-  });
-
-  // Background enrichment for books missing metadata
-  if (needsEnrichment.length) {
-    enrichBooks(library.books, metadataCache, DATA_DIR).catch(err => {
-      console.error('Enrichment error:', err.message);
-    });
-  }
+  // Initial scan to pick up anything that changed while we were asleep/down.
+  refreshLibrary('Scanned').catch(err => console.error('Initial scan failed:', err.message));
 }
 
 // --- Static ---
@@ -199,16 +210,8 @@ app.get('/api/categorize', async (req, res) => {
 });
 
 app.post('/api/rescan', async (req, res) => {
-  library = await scanLibrary(AUDIOBOOKS_PATH);
-  const { cache } = mergeMetadata(library.books, metadataCache);
-  metadataCache = cache;
-  saveCache(DATA_DIR, metadataCache);
-  const count = Object.keys(library.books).length;
-  mergeTags(library.books, loadTags(DATA_DIR));
-  console.log(`Manual rescan: ${count} book(s)`);
-  writeLibraryJson();
-  enrichBooks(library.books, metadataCache, DATA_DIR).catch(() => {});
-  res.json({ ok: true, count });
+  await refreshLibrary('Manual rescan');
+  res.json({ ok: true, count: Object.keys(library.books).length });
 });
 
 // --- Book routes ---
