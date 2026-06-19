@@ -1,15 +1,11 @@
 # AudiobookCast — onboarded into Valet.
 #
-# Class: user-/client-triggered backend, used rarely -> on-demand (scale-to-zero).
-# Sablier suspends it when idle and wakes it on the next request, so it costs nothing
-# the ~99% of the time it isn't being touched.
-#
-# WAKE STRATEGY — blocking, not the default loading page. This app is polled by podcast
-# apps (RSS feeds + MP3 enclosures), which are not browsers: the default Sablier
-# "dynamic" strategy would answer a cold request with an HTML loading page and break the
-# feed/download. The `blocking` strategy below instead holds the request open for up to
-# `blocking.timeout` while the container wakes (~a few seconds), then forwards the real
-# request. Browsers hitting the web UI cold just wait briefly too.
+# Class: user-/client-triggered backend, but ALWAYS-ON. It's accessed from a phone and
+# polled by podcast apps (RSS feeds + MP3 enclosures) that won't tolerate a slow/failed
+# cold start. It was tried as scale-to-zero (Sablier), but cold wakes returned HTTP 500
+# via the Sablier Traefik plugin (~10s timeout in its wake path, independent of
+# blocking.timeout), breaking phone/podcast access. Idle cost is ~64MB, so it stays
+# resident. See the managed block below for how to switch back to scale-to-zero.
 #
 # ROUTING — host-based, NOT a path prefix. The UI and feeds hardcode root-relative paths
 # (`/api/...`, `/books/:id/feed`, `/opds`), so serving under `/audiobookcast` with a
@@ -21,10 +17,8 @@
 # HOSTNAME must be the address podcast apps actually reach, because every RSS
 # enclosure/cover URL is built from it.
 #
-# NOTE: these labels are a hand-maintained equivalent of the `just mode` managed block.
-# Running `just mode audiobookcast ...` would REGENERATE this block as a path-prefixed,
-# loading-page app and undo both the Host() rule and the blocking strategy. If you ever
-# do, re-apply this file afterward.
+# NOTE: the managed block is hand-maintained. Running `just mode audiobookcast ...` would
+# REGENERATE it as a path-prefixed app and undo the Host() rule, so don't — edit it here.
 services:
   audiobookcast:
     build: ./apps/audiobookcast
@@ -39,10 +33,9 @@ services:
       # (tags.json, metadata cache, AI enrichment) go to /app/data.
       - audiobookcast-library:/app/audiobooks:ro
       - audiobookcast-data:/app/data
-    # No /health endpoint; the root page is a fine readiness signal. Lets Sablier detect
-    # when the container is actually up after a wake. The app listens immediately (it
-    # serves the persisted library and rescans in the background), so it's ready within
-    # a few seconds of boot.
+    # No /health endpoint; the root page is a fine readiness signal. Drives the dashboard
+    # status and lets Docker restart it if it wedges. The app listens immediately (serves
+    # the persisted library and rescans in the background), so it's healthy within seconds.
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:4500/"]
       interval: 10s
@@ -50,24 +43,23 @@ services:
       retries: 3
       start_period: 20s
     # >>> valet:managed (hand-maintained — see header note; `just mode` would overwrite)
+    # always-on: a media server hit from a phone and polled by podcast apps wants an
+    # immediate, reliable response. Scale-to-zero cold wakes here returned HTTP 500 (the
+    # Sablier Traefik plugin has a ~10s timeout in its wake path, independent of
+    # blocking.timeout), which broke phone/podcast access. Idle cost is ~64MB, so resident
+    # is the right trade. To go back to scale-to-zero, restore the on-demand label set
+    # (valet.mode=on-demand, allownonrunning, the -sablier middleware + sablier.* labels)
+    # and drop `restart: unless-stopped` — do it by hand, NOT `just mode` (that would also
+    # clobber the Host() rule).
+    restart: unless-stopped
     labels:
       - valet.type=service
-      - valet.mode=on-demand
+      - valet.mode=always-on
       - valet.route=audiobookcast
       - traefik.enable=true
-      - traefik.docker.allownonrunning=true
       - traefik.http.routers.audiobookcast.rule=Host(`audiobooks.192.168.10.12.nip.io`)
       - traefik.http.routers.audiobookcast.entrypoints=web
-      - traefik.http.routers.audiobookcast.middlewares=audiobookcast-sablier
       - traefik.http.services.audiobookcast.loadbalancer.server.port=4500
-      - sablier.enable=true
-      - sablier.group=audiobookcast
-      - traefik.http.middlewares.audiobookcast-sablier.plugin.sablier.group=audiobookcast
-      - traefik.http.middlewares.audiobookcast-sablier.plugin.sablier.sablierUrl=http://sablier:10000
-      - traefik.http.middlewares.audiobookcast-sablier.plugin.sablier.sessionDuration=15m
-      # Hold the cold request only as long as a container/node boot needs; the app serves
-      # its cached library immediately on start, so no need to wait out a full scan.
-      - traefik.http.middlewares.audiobookcast-sablier.plugin.sablier.blocking.timeout=30s
     # <<< valet:managed
 
 networks:
