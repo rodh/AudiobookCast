@@ -14,7 +14,7 @@
 # ROUTING — host-based, NOT a path prefix. The UI and feeds hardcode root-relative paths
 # (`/api/...`, `/books/:id/feed`, `/opds`), so serving under `/audiobookcast` with a
 # stripprefix would break them. Instead it owns a hostname. `*.<ip>.nip.io` resolves to
-# that IP with zero DNS setup, so `audiobooks.192.168.10.9.nip.io` -> 192.168.10.9 (the
+# that IP with zero DNS setup, so `audiobooks.192.168.10.12.nip.io` -> 192.168.10.12 (the
 # Valet host). Swap this for a real hostname (router DNS / Pi-hole / Tailscale) anytime —
 # it's one rule + the HOSTNAME env below.
 #
@@ -33,7 +33,7 @@ services:
     environment:
       - PORT=4500
       - AUDIOBOOKS_PATH=/app/audiobooks
-      - HOSTNAME=http://audiobooks.192.168.10.9.nip.io
+      - HOSTNAME=http://audiobooks.192.168.10.12.nip.io
     volumes:
       # The library is read-only to the app (it only scans/serves it). All writes
       # (tags.json, metadata cache, AI enrichment) go to /app/data.
@@ -54,7 +54,7 @@ services:
       - valet.route=audiobookcast
       - traefik.enable=true
       - traefik.docker.allownonrunning=true
-      - traefik.http.routers.audiobookcast.rule=Host(`audiobooks.192.168.10.9.nip.io`)
+      - traefik.http.routers.audiobookcast.rule=Host(`audiobooks.192.168.10.12.nip.io`)
       - traefik.http.routers.audiobookcast.entrypoints=web
       - traefik.http.routers.audiobookcast.middlewares=audiobookcast-sablier
       - traefik.http.services.audiobookcast.loadbalancer.server.port=4500
