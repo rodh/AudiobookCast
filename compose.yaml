@@ -40,13 +40,16 @@ services:
       - audiobookcast-library:/app/audiobooks:ro
       - audiobookcast-data:/app/data
     # No /health endpoint; the root page is a fine readiness signal. Lets Sablier detect
-    # when the container is actually up after a wake.
+    # when the container is actually up after a wake. NOTE: the app runs a full library
+    # scan over CIFS before it starts listening (~30-45s for ~90 books, grows with the
+    # library), so start_period is generous — otherwise a normal cold wake would be
+    # flagged "unhealthy" mid-scan.
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:4500/"]
       interval: 10s
       timeout: 3s
       retries: 3
-      start_period: 5s
+      start_period: 120s
     # >>> valet:managed (hand-maintained — see header note; `just mode` would overwrite)
     labels:
       - valet.type=service
@@ -63,7 +66,9 @@ services:
       - traefik.http.middlewares.audiobookcast-sablier.plugin.sablier.group=audiobookcast
       - traefik.http.middlewares.audiobookcast-sablier.plugin.sablier.sablierUrl=http://sablier:10000
       - traefik.http.middlewares.audiobookcast-sablier.plugin.sablier.sessionDuration=15m
-      - traefik.http.middlewares.audiobookcast-sablier.plugin.sablier.blocking.timeout=1m
+      # Cold wake re-runs the library scan (~30-45s) before the app answers; hold the
+      # blocking request long enough to cover it so podcast clients get the real response.
+      - traefik.http.middlewares.audiobookcast-sablier.plugin.sablier.blocking.timeout=2m
     # <<< valet:managed
 
 networks:
