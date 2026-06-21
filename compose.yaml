@@ -28,6 +28,12 @@
 services:
   audiobookcast:
     build: ./apps/audiobookcast
+    # Run an init (tini) as PID 1. The app's `node server.js` runs as PID 1 otherwise, and
+    # Linux applies no default signal action to PID 1 + Node installs no SIGTERM handler, so
+    # Sablier's scale-to-zero stop (SIGTERM) is ignored and Docker escalates to SIGKILL ->
+    # exit 137, which the dashboard correctly reads as a crash. tini forwards SIGTERM to node
+    # (no longer PID 1), so a normal sleep exits 143 and shows as "Asleep", not "Crashed".
+    init: true
     networks:
       - valet
     environment:
